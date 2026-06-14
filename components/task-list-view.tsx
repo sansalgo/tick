@@ -1,0 +1,262 @@
+"use client"
+
+import { useState } from "react"
+import {
+  CaretDownIcon,
+  CaretRightIcon,
+  CheckIcon,
+  DotsThreeVerticalIcon,
+  ListBulletsIcon,
+  ListChecksIcon,
+  StarIcon,
+  TrashIcon,
+  XIcon,
+  type Icon,
+} from "@phosphor-icons/react"
+
+import { AddTaskBar } from "@/components/add-task-bar"
+import { ListOptionsMenu } from "@/components/list-options-menu"
+import { TaskRow } from "@/components/task-row"
+import { Button } from "@/components/ui/button"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { DEFAULT_LIST_ID } from "@/lib/constants"
+import type { SortConfig, Task, TaskList } from "@/lib/schemas"
+import { sortTasks } from "@/lib/sort"
+import { useAppStore, type NewTaskInput } from "@/lib/store"
+import { useUiStore } from "@/lib/ui-store"
+
+interface AddTaskBarConfig {
+  listId: string
+  taskDefaults?: Partial<Pick<NewTaskInput, "myDay" | "dueDate" | "reminder" | "repeat">>
+  markImportant?: boolean
+}
+
+interface TaskListViewProps {
+  icon: Icon
+  title: string
+  subtitle?: string
+  tasks: Task[]
+  sortConfig: SortConfig
+  onSortChange: (sort: SortConfig) => void
+  emptyTitle: string
+  emptyDescription?: string
+  addTaskBar?: AddTaskBarConfig
+  lists?: TaskList[]
+  listsById?: Map<string, TaskList>
+}
+
+export function TaskListView({
+  icon: HeaderIcon,
+  title,
+  subtitle,
+  tasks,
+  sortConfig,
+  onSortChange,
+  emptyTitle,
+  emptyDescription,
+  addTaskBar,
+  lists,
+  listsById,
+}: TaskListViewProps) {
+  const [completedOpen, setCompletedOpen] = useState(false)
+
+  const selectionMode = useUiStore((state) => state.selectionMode)
+  const selectedTaskIds = useUiStore((state) => state.selectedTaskIds)
+  const exitSelectionMode = useUiStore((state) => state.exitSelectionMode)
+  const selectAllTaskIds = useUiStore((state) => state.selectAllTasks)
+  const setTasksImportant = useAppStore((state) => state.setTasksImportant)
+  const setTasksCompleted = useAppStore((state) => state.setTasksCompleted)
+  const moveTasksToList = useAppStore((state) => state.moveTasksToList)
+  const deleteTasks = useAppStore((state) => state.deleteTasks)
+
+  const activeTasks = sortTasks(tasks.filter((t) => !t.completed), sortConfig)
+  const completedTasks = sortTasks(tasks.filter((t) => t.completed), sortConfig)
+  const allTaskIds = [...activeTasks, ...completedTasks].map((t) => t.id)
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between gap-4 px-6 pt-12 pb-4 md:pt-6">
+        {selectionMode ? (
+          <SelectionToolbar
+            count={selectedTaskIds.length}
+            lists={lists ?? []}
+            onClose={exitSelectionMode}
+            onSelectAll={() => selectAllTaskIds(allTaskIds)}
+            onMarkImportant={() => {
+              setTasksImportant(selectedTaskIds, true)
+              exitSelectionMode()
+            }}
+            onMarkCompleted={() => {
+              setTasksCompleted(selectedTaskIds, true)
+              exitSelectionMode()
+            }}
+            onMoveTo={(listId) => {
+              moveTasksToList(selectedTaskIds, listId)
+              exitSelectionMode()
+            }}
+            onDelete={() => {
+              deleteTasks(selectedTaskIds)
+              exitSelectionMode()
+            }}
+          />
+        ) : (
+          <>
+            <div className="flex items-center gap-3">
+              <HeaderIcon className="size-7 text-primary" weight="duotone" />
+              <div>
+                <h1 className="text-2xl font-semibold">{title}</h1>
+                {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+              </div>
+            </div>
+            <ListOptionsMenu sortConfig={sortConfig} onSortChange={onSortChange} />
+          </>
+        )}
+      </div>
+
+      <ScrollArea
+        data-print-area
+        className="flex-1"
+        style={{ backgroundImage: "var(--list-background, none)" }}
+      >
+        <div className="pb-4">
+          {activeTasks.length === 0 && completedTasks.length === 0 ? (
+            <Empty className="py-16">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <HeaderIcon weight="duotone" />
+                </EmptyMedia>
+                <EmptyTitle>{emptyTitle}</EmptyTitle>
+                {emptyDescription && <EmptyDescription>{emptyDescription}</EmptyDescription>}
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <div className="flex flex-col">
+              {activeTasks.map((task) => (
+                <TaskRow key={task.id} task={task} list={listsById?.get(task.listId)} lists={lists} />
+              ))}
+
+              {completedTasks.length > 0 && (
+                <Collapsible open={completedOpen} onOpenChange={setCompletedOpen} className="mt-2">
+                  <CollapsibleTrigger
+                    data-no-print
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    {completedOpen ? <CaretDownIcon /> : <CaretRightIcon />}
+                    Completed ({completedTasks.length})
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    {completedTasks.map((task) => (
+                      <TaskRow key={task.id} task={task} list={listsById?.get(task.listId)} lists={lists} />
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+
+      {addTaskBar && (
+        <div className="border-t px-4 py-2" data-no-print>
+          <AddTaskBar
+            listId={addTaskBar.listId}
+            taskDefaults={addTaskBar.taskDefaults}
+            markImportant={addTaskBar.markImportant}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface SelectionToolbarProps {
+  count: number
+  lists: TaskList[]
+  onClose: () => void
+  onSelectAll: () => void
+  onMarkImportant: () => void
+  onMarkCompleted: () => void
+  onMoveTo: (listId: string) => void
+  onDelete: () => void
+}
+
+function SelectionToolbar({
+  count,
+  lists,
+  onClose,
+  onSelectAll,
+  onMarkImportant,
+  onMarkCompleted,
+  onMoveTo,
+  onDelete,
+}: SelectionToolbarProps) {
+  return (
+    <div className="flex w-full items-center gap-2">
+      <Button type="button" variant="ghost" size="icon" aria-label="Cancel selection" onClick={onClose}>
+        <XIcon />
+      </Button>
+      <span className="text-lg font-semibold">{count}</span>
+      <div className="ml-auto">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="ghost" size="icon" aria-label="Selection actions">
+              <DotsThreeVerticalIcon />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem onSelect={onSelectAll}>
+              <CheckIcon /> Select all
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onMarkImportant}>
+              <StarIcon /> Mark as important
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onMarkCompleted}>
+              <CheckIcon /> Mark as completed
+            </DropdownMenuItem>
+            {lists.length > 0 && (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <ListBulletsIcon /> Move
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {lists.map((list) => (
+                    <DropdownMenuItem key={list.id} onSelect={() => onMoveTo(list.id)}>
+                      {list.id === DEFAULT_LIST_ID ? (
+                        <ListChecksIcon />
+                      ) : list.emoji ? (
+                        <span>{list.emoji}</span>
+                      ) : (
+                        <ListBulletsIcon />
+                      )}
+                      {list.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+              <TrashIcon /> Delete task
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  )
+}

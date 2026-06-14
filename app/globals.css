@@ -127,3 +127,21 @@
     @apply font-mono;
     }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  [data-print-area],
+  [data-print-area] * {
+    visibility: visible;
+  }
+  [data-print-area] {
+    position: absolute;
+    inset: 0;
+    overflow: visible;
+  }
+  [data-no-print] {
+    display: none !important;
+  }
+}

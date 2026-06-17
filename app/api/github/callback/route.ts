@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   cookieStore.delete(GH_OAUTH_STATE_COOKIE)
 
   if (!code || !state || !expectedState || state !== expectedState) {
-    return NextResponse.redirect(new URL("/?gh_error=invalid_state", baseUrl))
+    return NextResponse.redirect(new URL("/my-day?gh_error=invalid_state", baseUrl))
   }
 
   const clientId = process.env.GITHUB_CLIENT_ID
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   const redirectUri = process.env.GITHUB_REDIRECT_URI
 
   if (!clientId || !clientSecret || !redirectUri) {
-    return NextResponse.redirect(new URL("/?gh_error=not_configured", baseUrl))
+    return NextResponse.redirect(new URL("/my-day?gh_error=not_configured", baseUrl))
   }
 
   const tokenRes = await fetch(GITHUB_OAUTH_TOKEN_URL, {
@@ -44,10 +44,10 @@ export async function GET(request: NextRequest) {
   const accessToken = tokenBody?.access_token
 
   if (!tokenRes.ok || typeof accessToken !== "string") {
-    return NextResponse.redirect(new URL("/?gh_error=token_exchange_failed", baseUrl))
+    return NextResponse.redirect(new URL("/my-day?gh_error=token_exchange_failed", baseUrl))
   }
 
   cookieStore.set(GH_TOKEN_COOKIE, accessToken, githubCookieOptions)
 
-  return NextResponse.redirect(new URL("/?gh_connected=1", baseUrl))
+  return NextResponse.redirect(new URL("/my-day?gh_connected=1", baseUrl))
 }

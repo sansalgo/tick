@@ -3,7 +3,7 @@ import { createJSONStorage, persist } from "zustand/middleware"
 import { isToday } from "date-fns"
 import { generateId } from "@/lib/id"
 import { APP_STORAGE_KEY, DEFAULT_LIST_ID } from "@/lib/constants"
-import type { AppData, RepeatRule, Settings, SmartListKey, SortConfig, Task, TaskList } from "@/lib/schemas"
+import type { AppData, ListGroup, RepeatRule, Settings, SmartListKey, SortConfig, Task, TaskList } from "@/lib/schemas"
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error"
 
@@ -29,16 +29,23 @@ export interface NewTaskInput {
 interface AppState {
   lists: TaskList[]
   tasks: Task[]
+  groups: ListGroup[]
   settings: Settings
   github: GithubState
   hasHydrated: boolean
 
   setHasHydrated: (value: boolean) => void
 
-  addList: (name: string, opts?: { emoji?: string; color?: string }) => string
+  addList: (name: string, opts?: { emoji?: string; color?: string; groupId?: string }) => string
   renameList: (id: string, name: string) => void
   deleteList: (id: string) => void
   updateListSort: (id: string, sort: SortConfig) => void
+  moveListToGroup: (listId: string, groupId: string | null) => void
+
+  addGroup: (name: string) => string
+  renameGroup: (id: string, name: string) => void
+  deleteGroup: (id: string) => void
+  toggleGroupCollapsed: (id: string) => void
 
   addTask: (input: NewTaskInput) => string
   updateTask: (id: string, patch: Partial<Task>) => void
@@ -71,7 +78,7 @@ interface AppState {
   markSynced: (timestamp: string) => void
 }
 
-type PersistedAppState = Pick<AppState, "lists" | "tasks" | "settings"> & {
+type PersistedAppState = Pick<AppState, "lists" | "tasks" | "groups" | "settings"> & {
   github: Pick<GithubState, "connected" | "login" | "owner" | "repo">
 }
 
@@ -111,6 +118,7 @@ export const useAppStore = create<AppState>()(
     (set) => ({
       lists: createDefaultLists(),
       tasks: [],
+      groups: [],
       settings: createDefaultSettings(),
       github: createDefaultGithub(),
       hasHydrated: false,
@@ -127,6 +135,7 @@ export const useAppStore = create<AppState>()(
           isSystem: false,
           createdAt: new Date().toISOString(),
           sort: { by: "createdAt", direction: "asc" },
+          groupId: opts?.groupId,
         }
         set((state) => ({ lists: [...state.lists, newList] }))
         return id
@@ -143,6 +152,37 @@ export const useAppStore = create<AppState>()(
       updateListSort: (id, sort) =>
         set((state) => ({
           lists: state.lists.map((l) => (l.id === id ? { ...l, sort } : l)),
+        })),
+      moveListToGroup: (listId, groupId) =>
+        set((state) => ({
+          lists: state.lists.map((l) =>
+            l.id === listId ? { ...l, groupId: groupId ?? undefined } : l
+          ),
+        })),
+
+      addGroup: (name) => {
+        const id = generateId()
+        const newGroup: ListGroup = {
+          id,
+          name,
+          collapsed: false,
+          createdAt: new Date().toISOString(),
+        }
+        set((state) => ({ groups: [...state.groups, newGroup] }))
+        return id
+      },
+      renameGroup: (id, name) =>
+        set((state) => ({
+          groups: state.groups.map((g) => (g.id === id ? { ...g, name } : g)),
+        })),
+      deleteGroup: (id) =>
+        set((state) => ({
+          groups: state.groups.filter((g) => g.id !== id),
+          lists: state.lists.map((l) => (l.groupId === id ? { ...l, groupId: undefined } : l)),
+        })),
+      toggleGroupCollapsed: (id) =>
+        set((state) => ({
+          groups: state.groups.map((g) => (g.id === id ? { ...g, collapsed: !g.collapsed } : g)),
         })),
 
       addTask: (input) => {
@@ -282,6 +322,7 @@ export const useAppStore = create<AppState>()(
         set(() => ({
           lists: data.lists,
           tasks: data.tasks,
+          groups: data.groups ?? [],
           settings: data.settings,
         })),
       setSyncStatus: (status, error) =>
@@ -299,6 +340,7 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         lists: state.lists,
         tasks: state.tasks,
+        groups: state.groups,
         settings: state.settings,
         github: {
           connected: state.github.connected,
@@ -314,6 +356,7 @@ export const useAppStore = create<AppState>()(
           ...currentState,
           lists: persisted.lists ?? currentState.lists,
           tasks: persisted.tasks ?? currentState.tasks,
+          groups: persisted.groups ?? currentState.groups,
           settings: persisted.settings
             ? {
                 ...currentState.settings,
@@ -355,6 +398,7 @@ export const selectAppData = (state: AppState): AppData => ({
   version: 1,
   lists: state.lists,
   tasks: state.tasks,
+  groups: state.groups,
   settings: state.settings,
   updatedAt: new Date().toISOString(),
 })

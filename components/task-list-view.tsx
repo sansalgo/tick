@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import {
+  ArrowDownIcon,
+  ArrowUpIcon,
   CaretDownIcon,
   CaretRightIcon,
   CheckIcon,
@@ -36,10 +38,20 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { DEFAULT_LIST_ID } from "@/lib/constants"
-import type { SortConfig, Task, TaskList } from "@/lib/schemas"
+import type { SortBy, SortConfig, Task, TaskList } from "@/lib/schemas"
 import { sortTasks } from "@/lib/sort"
 import { useAppStore, type NewTaskInput } from "@/lib/store"
 import { useUiStore } from "@/lib/ui-store"
+
+const DEFAULT_SORT: SortConfig = { by: "createdAt", direction: "asc" }
+
+const SORT_LABELS: Record<SortBy, string> = {
+  importance: "by importance",
+  dueDate: "by due date",
+  myDay: "by My Day",
+  alphabetical: "alphabetically",
+  createdAt: "by creation date",
+}
 
 interface AddTaskBarConfig {
   listId: string
@@ -54,6 +66,7 @@ interface TaskListViewProps {
   tasks: Task[]
   sortConfig: SortConfig
   onSortChange: (sort: SortConfig) => void
+  defaultSort?: SortConfig
   emptyTitle: string
   emptyDescription?: string
   addTaskBar?: AddTaskBarConfig
@@ -68,6 +81,7 @@ export function TaskListView({
   tasks,
   sortConfig,
   onSortChange,
+  defaultSort = DEFAULT_SORT,
   emptyTitle,
   emptyDescription,
   addTaskBar,
@@ -129,6 +143,16 @@ export function TaskListView({
         )}
       </div>
 
+      {(sortConfig.by !== defaultSort.by || sortConfig.direction !== defaultSort.direction) && (
+        <SortIndicator
+          sortConfig={sortConfig}
+          onToggleDirection={() =>
+            onSortChange({ ...sortConfig, direction: sortConfig.direction === "asc" ? "desc" : "asc" })
+          }
+          onClear={() => onSortChange(defaultSort)}
+        />
+      )}
+
       <ScrollArea
         data-print-area
         className="flex-1"
@@ -181,6 +205,39 @@ export function TaskListView({
           />
         </div>
       )}
+    </div>
+  )
+}
+
+interface SortIndicatorProps {
+  sortConfig: SortConfig
+  onToggleDirection: () => void
+  onClear: () => void
+}
+
+function SortIndicator({ sortConfig, onToggleDirection, onClear }: SortIndicatorProps) {
+  return (
+    <div className="flex items-center gap-1 px-4 pb-2">
+      <button
+        type="button"
+        onClick={onToggleDirection}
+        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      >
+        {sortConfig.direction === "asc" ? (
+          <ArrowUpIcon className="size-3" />
+        ) : (
+          <ArrowDownIcon className="size-3" />
+        )}
+        Sorted {SORT_LABELS[sortConfig.by]}
+      </button>
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label="Clear sort"
+        className="flex items-center rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      >
+        <XIcon className="size-3" />
+      </button>
     </div>
   )
 }

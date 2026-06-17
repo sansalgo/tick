@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -27,8 +27,18 @@ const newListSchema = z.object({
 
 type NewListFormValues = z.infer<typeof newListSchema>
 
-export function NewListDialog({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = useState(false)
+interface NewListDialogProps {
+  children?: React.ReactNode
+  groupId?: string
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+}
+
+export function NewListDialog({ children, groupId, open: controlledOpen, onOpenChange: controlledOnOpenChange }: NewListDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : internalOpen
+
   const addList = useAppStore((state) => state.addList)
   const router = useRouter()
 
@@ -37,24 +47,26 @@ export function NewListDialog({ children }: { children: React.ReactNode }) {
     defaultValues: { name: "" },
   })
 
+  useEffect(() => {
+    if (!open) form.reset()
+  }, [open, form])
+
+  function setOpen(value: boolean) {
+    if (isControlled) controlledOnOpenChange?.(value)
+    else setInternalOpen(value)
+  }
+
   function onSubmit(values: NewListFormValues) {
     const name = values.name.trim()
-    const id = addList(name)
+    const id = addList(name, groupId ? { groupId } : undefined)
     toast.success(`List "${name}" created`)
-    form.reset()
     setOpen(false)
     router.push(`/lists/${id}`)
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(value) => {
-        setOpen(value)
-        if (!value) form.reset()
-      }}
-    >
-      <DialogTrigger asChild>{children}</DialogTrigger>
+    <Dialog open={open} onOpenChange={setOpen}>
+      {children && <DialogTrigger asChild>{children}</DialogTrigger>}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New list</DialogTitle>

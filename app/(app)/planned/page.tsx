@@ -4,7 +4,7 @@ import { useShallow } from "zustand/react/shallow"
 
 import { TaskListSkeleton } from "@/components/task-list-skeleton"
 import { TaskListView } from "@/components/task-list-view"
-import { SMART_LIST_DEFS } from "@/lib/constants"
+import { SMART_LIST_DEFS } from "@/lib/smart-lists"
 import { selectPlannedTasks, useAppStore } from "@/lib/store"
 
 const SMART_LIST = SMART_LIST_DEFS.find((def) => def.key === "planned")!
@@ -28,6 +28,7 @@ export default function PlannedPage() {
       tasks={tasks}
       sortConfig={sortConfig}
       onSortChange={(sort) => setSmartListSort("planned", sort)}
+      defaultSort={{ by: "dueDate", direction: "asc" }}
       emptyTitle="Nothing planned yet"
       emptyDescription="Tasks with a due date will show up here."
       lists={lists}

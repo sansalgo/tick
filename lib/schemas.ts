@@ -48,6 +48,13 @@ export const sortConfigSchema = z.object({
   direction: sortDirectionSchema,
 })
 
+export const listGroupSchema = z.object({
+  id: idSchema,
+  name: z.string().min(1),
+  collapsed: z.boolean(),
+  createdAt: isoDateStringSchema,
+})
+
 export const taskListSchema = z.object({
   id: idSchema,
   name: z.string().min(1),
@@ -56,6 +63,7 @@ export const taskListSchema = z.object({
   isSystem: z.boolean(),
   createdAt: isoDateStringSchema,
   sort: sortConfigSchema,
+  groupId: idSchema.optional(),
 })
 
 export const smartListKeySchema = z.enum(["tasks", "myDay", "important", "planned"])
@@ -71,6 +79,7 @@ export const appDataSchema = z.object({
   lists: z.array(taskListSchema),
   tasks: z.array(taskSchema),
   settings: settingsSchema,
+  groups: z.array(listGroupSchema).default([]),
   updatedAt: isoDateStringSchema,
 })
 
@@ -82,6 +91,7 @@ export const githubRepoNameSchema = z.object({
     .regex(/^[a-zA-Z0-9._-]+$/, "Use only letters, numbers, dots, hyphens, and underscores"),
 })
 
+export type ListGroup = z.infer<typeof listGroupSchema>
 export type RepeatUnit = z.infer<typeof repeatUnitSchema>
 export type RepeatRule = z.infer<typeof repeatRuleSchema>
 export type Step = z.infer<typeof stepSchema>

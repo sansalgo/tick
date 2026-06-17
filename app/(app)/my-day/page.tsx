@@ -5,7 +5,8 @@ import { useShallow } from "zustand/react/shallow"
 
 import { TaskListSkeleton } from "@/components/task-list-skeleton"
 import { TaskListView } from "@/components/task-list-view"
-import { DEFAULT_LIST_ID, SMART_LIST_DEFS } from "@/lib/constants"
+import { DEFAULT_LIST_ID } from "@/lib/constants"
+import { SMART_LIST_DEFS } from "@/lib/smart-lists"
 import { selectMyDayTasks, useAppStore } from "@/lib/store"
 
 const SMART_LIST = SMART_LIST_DEFS.find((def) => def.key === "myDay")!

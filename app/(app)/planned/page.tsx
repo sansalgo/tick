@@ -4,6 +4,7 @@ import { useShallow } from "zustand/react/shallow"
 
 import { TaskListSkeleton } from "@/components/task-list-skeleton"
 import { TaskListView } from "@/components/task-list-view"
+import { DEFAULT_LIST_ID } from "@/lib/constants"
 import { SMART_LIST_DEFS } from "@/lib/smart-lists"
 import { selectPlannedTasks, useAppStore } from "@/lib/store"
 
@@ -31,6 +32,7 @@ export default function PlannedPage() {
       defaultSort={{ by: "dueDate", direction: "asc" }}
       emptyTitle="Nothing planned yet"
       emptyDescription="Tasks with a due date will show up here."
+      addTaskBar={{ listId: DEFAULT_LIST_ID, showQuickDueDate: true, lists, placeholder: "Add a planned task" }}
       lists={lists}
       listsById={listsById}
     />

@@ -13,6 +13,7 @@ import {
   TrashIcon,
 } from "@phosphor-icons/react"
 
+import { GitSyncActions } from "@/components/github/git-sync-actions"
 import { GithubStatus } from "@/components/github/github-status"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -190,6 +191,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
+        <GitSyncActions />
         <GithubStatus />
       </SidebarFooter>
     </Sidebar>

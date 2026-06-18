@@ -1,11 +1,33 @@
 import { create } from "zustand"
+import type { AppData, ListGroup, Settings, Task, TaskList } from "@/lib/schemas"
+
+export interface CommittedSnapshot {
+  lists: TaskList[]
+  tasks: Task[]
+  groups: ListGroup[]
+  settings: Settings
+}
+
+export interface ConflictInfo {
+  localData: AppData
+  remoteData: AppData
+  remoteCommitSha: string
+}
 
 interface UiState {
   selectedTaskId: string | null
   setSelectedTaskId: (id: string | null) => void
 
-  githubSha: string | null
-  setGithubSha: (sha: string | null) => void
+  pendingCommit: AppData | null
+  setPendingCommit: (data: AppData) => void
+  clearPendingCommit: () => void
+
+  conflictInfo: ConflictInfo | null
+  setConflictInfo: (info: ConflictInfo) => void
+  clearConflictInfo: () => void
+
+  committedSnapshot: CommittedSnapshot | null
+  setCommittedSnapshot: (snapshot: CommittedSnapshot) => void
 
   selectionMode: boolean
   selectedTaskIds: string[]
@@ -19,8 +41,16 @@ export const useUiStore = create<UiState>()((set) => ({
   selectedTaskId: null,
   setSelectedTaskId: (id) => set({ selectedTaskId: id }),
 
-  githubSha: null,
-  setGithubSha: (sha) => set({ githubSha: sha }),
+  pendingCommit: null,
+  setPendingCommit: (data) => set({ pendingCommit: data }),
+  clearPendingCommit: () => set({ pendingCommit: null }),
+
+  conflictInfo: null,
+  setConflictInfo: (info) => set({ conflictInfo: info }),
+  clearConflictInfo: () => set({ conflictInfo: null }),
+
+  committedSnapshot: null,
+  setCommittedSnapshot: (snapshot) => set({ committedSnapshot: snapshot }),
 
   selectionMode: false,
   selectedTaskIds: [],

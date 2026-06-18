@@ -57,6 +57,9 @@ interface AddTaskBarConfig {
   listId: string
   taskDefaults?: Partial<Pick<NewTaskInput, "myDay" | "dueDate" | "reminder" | "repeat">>
   markImportant?: boolean
+  lists?: TaskList[]
+  showQuickDueDate?: boolean
+  placeholder?: string
 }
 
 interface TaskListViewProps {
@@ -197,11 +200,18 @@ export function TaskListView({
       </ScrollArea>
 
       {addTaskBar && (
-        <div className="border-t px-4 py-2" data-no-print>
+        <div className="relative shrink-0 px-4 pb-4 pt-1" data-no-print>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-full h-12 bg-linear-to-b from-transparent to-background"
+          />
           <AddTaskBar
             listId={addTaskBar.listId}
             taskDefaults={addTaskBar.taskDefaults}
             markImportant={addTaskBar.markImportant}
+            lists={addTaskBar.lists}
+            showQuickDueDate={addTaskBar.showQuickDueDate}
+            placeholder={addTaskBar.placeholder}
           />
         </div>
       )}

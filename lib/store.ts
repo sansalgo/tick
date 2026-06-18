@@ -5,15 +5,24 @@ import { generateId } from "@/lib/id"
 import { APP_STORAGE_KEY, DEFAULT_LIST_ID } from "@/lib/constants"
 import type { AppData, ListGroup, RepeatRule, Settings, SmartListKey, SortConfig, Task, TaskList } from "@/lib/schemas"
 
-export type SyncStatus = "idle" | "syncing" | "synced" | "error"
+export type GitSyncStatus =
+  | "clean"
+  | "uncommitted"
+  | "committed"
+  | "pushing"
+  | "pulling"
+  | "conflict"
+  | "error"
 
 export interface GithubState {
   connected: boolean
   login: string | null
   owner: string | null
   repo: string | null
-  syncStatus: SyncStatus
-  lastSyncedAt: string | null
+  remoteCommitSha: string | null  // persisted; last known remote HEAD commit SHA
+  gitStatus: GitSyncStatus
+  hasRemoteChanges: boolean
+  lastPushedAt: string | null
   lastError: string | null
 }
 
@@ -74,12 +83,14 @@ interface AppState {
   setGithubConnection: (info: { login: string; owner: string; repo: string }) => void
   disconnectGithub: () => void
   hydrateFromRemote: (data: AppData) => void
-  setSyncStatus: (status: SyncStatus, error?: string | null) => void
-  markSynced: (timestamp: string) => void
+  setRemoteCommitSha: (sha: string | null) => void
+  setGitStatus: (status: GitSyncStatus, error?: string | null) => void
+  markPushed: (timestamp: string) => void
+  setHasRemoteChanges: (value: boolean) => void
 }
 
 type PersistedAppState = Pick<AppState, "lists" | "tasks" | "groups" | "settings"> & {
-  github: Pick<GithubState, "connected" | "login" | "owner" | "repo">
+  github: Pick<GithubState, "connected" | "login" | "owner" | "repo" | "remoteCommitSha">
 }
 
 const createDefaultSettings = (): Settings => ({
@@ -108,8 +119,10 @@ const createDefaultGithub = (): GithubState => ({
   login: null,
   owner: null,
   repo: null,
-  syncStatus: "idle",
-  lastSyncedAt: null,
+  remoteCommitSha: null,
+  gitStatus: "clean",
+  hasRemoteChanges: false,
+  lastPushedAt: null,
   lastError: null,
 })
 
@@ -325,13 +338,27 @@ export const useAppStore = create<AppState>()(
           groups: data.groups ?? [],
           settings: data.settings,
         })),
-      setSyncStatus: (status, error) =>
+      setRemoteCommitSha: (sha) =>
         set((state) => ({
-          github: { ...state.github, syncStatus: status, lastError: error ?? null },
+          github: { ...state.github, remoteCommitSha: sha },
         })),
-      markSynced: (timestamp) =>
+      setGitStatus: (status, error) =>
         set((state) => ({
-          github: { ...state.github, syncStatus: "synced", lastSyncedAt: timestamp, lastError: null },
+          github: { ...state.github, gitStatus: status, lastError: error ?? null },
+        })),
+      markPushed: (timestamp) =>
+        set((state) => ({
+          github: {
+            ...state.github,
+            gitStatus: "clean",
+            hasRemoteChanges: false,
+            lastPushedAt: timestamp,
+            lastError: null,
+          },
+        })),
+      setHasRemoteChanges: (value) =>
+        set((state) => ({
+          github: { ...state.github, hasRemoteChanges: value },
         })),
     }),
     {
@@ -347,6 +374,7 @@ export const useAppStore = create<AppState>()(
           login: state.github.login,
           owner: state.github.owner,
           repo: state.github.repo,
+          remoteCommitSha: state.github.remoteCommitSha,
         },
       }),
       merge: (persistedState, currentState) => {

@@ -37,6 +37,13 @@ export async function POST(request: NextRequest) {
   const owner = repoData.owner.login as string
   const repo = repoData.name as string
 
+  // Tag the repo so the app can recognize it later
+  await githubApiFetch(token, `/repos/${owner}/${repo}/topics`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ names: ["tick-app-data"] }),
+  }).catch(() => null)
+
   const cookieStore = await cookies()
   cookieStore.set(GH_REPO_COOKIE, JSON.stringify({ owner, repo }), githubCookieOptions)
 

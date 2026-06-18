@@ -31,7 +31,7 @@ export default function ImportantPage() {
       onSortChange={(sort) => setSmartListSort("important", sort)}
       emptyTitle="Nothing marked as important yet"
       emptyDescription="Tasks you mark as important will show up here."
-      addTaskBar={{ listId: DEFAULT_LIST_ID, markImportant: true }}
+      addTaskBar={{ listId: DEFAULT_LIST_ID, markImportant: true, lists, placeholder: "Add an important task" }}
       lists={lists}
       listsById={listsById}
     />

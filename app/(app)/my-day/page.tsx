@@ -33,7 +33,7 @@ export default function MyDayPage() {
       onSortChange={(sort) => setSmartListSort("myDay", sort)}
       emptyTitle="Focus on what's important today"
       emptyDescription="Add tasks to My Day to plan what you want to get done."
-      addTaskBar={{ listId: DEFAULT_LIST_ID, taskDefaults: { myDay: new Date().toISOString() } }}
+      addTaskBar={{ listId: DEFAULT_LIST_ID, taskDefaults: { myDay: new Date().toISOString() }, lists, placeholder: "Add a task to My Day" }}
       lists={lists}
       listsById={listsById}
     />

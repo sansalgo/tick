@@ -29,7 +29,7 @@ export default function TasksPage() {
       onSortChange={(sort) => setSmartListSort("tasks", sort)}
       emptyTitle="No tasks yet"
       emptyDescription="Add a task to get started."
-      addTaskBar={{ listId: DEFAULT_LIST_ID }}
+      addTaskBar={{ listId: DEFAULT_LIST_ID, placeholder: "Add a task" }}
       lists={lists}
       listsById={listsById}
     />

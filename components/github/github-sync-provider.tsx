@@ -195,5 +195,6 @@ export function GithubSyncProvider({ children }: { children: React.ReactNode }) 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function stableJson(data: { lists: unknown; tasks: unknown; groups: unknown; settings: unknown }): string {
-  return JSON.stringify({ lists: data.lists, tasks: data.tasks, groups: data.groups, settings: data.settings })
+  const groups = (data.groups as Array<Record<string, unknown>>).map(({ collapsed: _c, ...g }) => g)
+  return JSON.stringify({ lists: data.lists, tasks: data.tasks, groups, settings: data.settings })
 }

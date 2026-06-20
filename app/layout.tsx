@@ -6,7 +6,8 @@ import { ThemeVarsProvider } from "@/components/theme/theme-vars-provider"
 import { GithubSyncProvider } from "@/components/github/github-sync-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"
+import { DisableContextMenu } from "@/components/disable-context-menu"
 
 const fontSans = Geist({
   subsets: ["latin"],
@@ -27,6 +28,7 @@ export default function RootLayout({
       className={cn("antialiased", fontSans.variable, "font-mono", geistMono.variable)}
     >
       <body>
+        <DisableContextMenu />
         <ThemeProvider>
           <ThemeVarsProvider>
             <TooltipProvider>

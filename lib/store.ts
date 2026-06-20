@@ -48,13 +48,17 @@ interface AppState {
   addList: (name: string, opts?: { emoji?: string; color?: string; groupId?: string }) => string
   renameList: (id: string, name: string) => void
   deleteList: (id: string) => void
+  duplicateList: (id: string) => string
   updateListSort: (id: string, sort: SortConfig) => void
   moveListToGroup: (listId: string, groupId: string | null) => void
+  reorderLists: (ids: string[]) => void
 
   addGroup: (name: string) => string
   renameGroup: (id: string, name: string) => void
   deleteGroup: (id: string) => void
+  ungroupLists: (groupId: string) => void
   toggleGroupCollapsed: (id: string) => void
+  reorderGroups: (ids: string[]) => void
 
   addTask: (input: NewTaskInput) => string
   updateTask: (id: string, patch: Partial<Task>) => void
@@ -162,6 +166,21 @@ export const useAppStore = create<AppState>()(
           lists: state.lists.filter((l) => l.id !== id),
           tasks: state.tasks.filter((t) => t.listId !== id),
         })),
+      duplicateList: (id) => {
+        const newId = generateId()
+        set((state) => {
+          const src = state.lists.find((l) => l.id === id)
+          if (!src) return {}
+          const copy: TaskList = {
+            ...src,
+            id: newId,
+            name: `${src.name} (copy)`,
+            createdAt: new Date().toISOString(),
+          }
+          return { lists: [...state.lists, copy] }
+        })
+        return newId
+      },
       updateListSort: (id, sort) =>
         set((state) => ({
           lists: state.lists.map((l) => (l.id === id ? { ...l, sort } : l)),
@@ -172,6 +191,17 @@ export const useAppStore = create<AppState>()(
             l.id === listId ? { ...l, groupId: groupId ?? undefined } : l
           ),
         })),
+      reorderLists: (ids) =>
+        set((state) => {
+          const idSet = new Set(ids)
+          const system = state.lists.filter((l) => l.isSystem)
+          const ordered = ids.flatMap((id) => {
+            const l = state.lists.find((x) => x.id === id)
+            return l ? [l] : []
+          })
+          const rest = state.lists.filter((l) => !l.isSystem && !idSet.has(l.id))
+          return { lists: [...system, ...ordered, ...rest] }
+        }),
 
       addGroup: (name) => {
         const id = generateId()
@@ -193,9 +223,21 @@ export const useAppStore = create<AppState>()(
           groups: state.groups.filter((g) => g.id !== id),
           lists: state.lists.map((l) => (l.groupId === id ? { ...l, groupId: undefined } : l)),
         })),
+      ungroupLists: (groupId) =>
+        set((state) => ({
+          groups: state.groups.filter((g) => g.id !== groupId),
+          lists: state.lists.map((l) => (l.groupId === groupId ? { ...l, groupId: undefined } : l)),
+        })),
       toggleGroupCollapsed: (id) =>
         set((state) => ({
           groups: state.groups.map((g) => (g.id === id ? { ...g, collapsed: !g.collapsed } : g)),
+        })),
+      reorderGroups: (ids) =>
+        set((state) => ({
+          groups: ids.flatMap((id) => {
+            const g = state.groups.find((x) => x.id === id)
+            return g ? [g] : []
+          }),
         })),
 
       addTask: (input) => {

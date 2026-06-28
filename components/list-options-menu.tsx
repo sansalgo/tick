@@ -11,6 +11,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { SortBy, SortConfig } from "@/lib/schemas"
 
 const SORT_BY_OPTIONS: { value: SortBy; label: string }[] = [
@@ -29,11 +30,16 @@ interface ListOptionsMenuProps {
 export function ListOptionsMenu({ sortConfig, onSortChange }: ListOptionsMenuProps) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="ghost" size="icon" aria-label="Sort options">
-          <SortAscendingIcon />
-        </Button>
-      </DropdownMenuTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="ghost" size="icon" aria-label="Sort options">
+              <SortAscendingIcon />
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Sort options</TooltipContent>
+      </Tooltip>
       <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuLabel>Sort by</DropdownMenuLabel>
         <DropdownMenuRadioGroup

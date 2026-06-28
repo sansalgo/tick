@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState } from "react"
+import { Suspense, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { MagnifyingGlass } from "@phosphor-icons/react"
 
@@ -16,8 +16,10 @@ function SearchResults() {
   const [sortConfig, setSortConfig] = useState<SortConfig>({ by: "createdAt", direction: "desc" })
 
   const hasHydrated = useAppStore((state) => state.hasHydrated)
-  const tasks = useAppStore((state) =>
-    queryLower ? state.tasks.filter((t) => t.title.toLowerCase().includes(queryLower)) : []
+  const allTasks = useAppStore((state) => state.tasks)
+  const tasks = useMemo(
+    () => (queryLower ? allTasks.filter((t) => t.title.toLowerCase().includes(queryLower)) : []),
+    [allTasks, queryLower],
   )
   const lists = useAppStore((state) => state.lists)
   const listsById = new Map(lists.map((list) => [list.id, list]))

@@ -1,18 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
-import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
 import {
-  CaretDownIcon,
-  CaretRightIcon,
-  ListBulletsIcon,
-  MagnifyingGlassIcon,
-  PlusIcon,
-  SquaresFourIcon,
-  TrashIcon,
-} from "@phosphor-icons/react"
-import {
+  closestCenter,
+  CollisionDetection,
   DndContext,
   DragEndEvent,
   DragMoveEvent,
@@ -26,6 +16,19 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core"
+import {
+  CaretDownIcon,
+  CaretRightIcon,
+  FolderPlusIcon,
+  ListBulletsIcon,
+  MagnifyingGlassIcon,
+  PlusIcon,
+  SquaresFourIcon,
+  TrashIcon,
+} from "@phosphor-icons/react"
+import Link from "next/link"
+import { usePathname, useRouter } from "next/navigation"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { GitSyncActions } from "@/components/github/git-sync-actions"
 import { GithubStatus } from "@/components/github/github-status"
@@ -45,9 +48,7 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupAction,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInput,
   SidebarMenu,
@@ -56,7 +57,10 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { DEFAULT_LIST_ID } from "@/lib/constants"
+import type { ListGroup, SmartListKey, TaskList } from "@/lib/schemas"
+import { SMART_LIST_DEFS } from "@/lib/smart-lists"
 import {
   selectAllTasks,
   selectImportantTasks,
@@ -64,8 +68,6 @@ import {
   selectPlannedTasks,
   useAppStore,
 } from "@/lib/store"
-import type { ListGroup, SmartListKey, TaskList } from "@/lib/schemas"
-import { SMART_LIST_DEFS } from "@/lib/smart-lists"
 import { cn } from "@/lib/utils"
 
 // ─── DnD helpers ──────────────────────────────────────────────────────────────
@@ -102,6 +104,8 @@ const restrictToWindow: Modifier = ({ draggingNodeRect, transform, windowRect })
   }
 }
 
+const DND_AUTO_SCROLL = { threshold: { x: 0, y: 0.2 } }
+
 // ─── AppSidebar ───────────────────────────────────────────────────────────────
 
 export function AppSidebar() {
@@ -110,6 +114,8 @@ export function AppSidebar() {
   const [search, setSearch] = useState("")
   const [renamingListId, setRenamingListId] = useState<string | null>(null)
   const [renamingGroupId, setRenamingGroupId] = useState<string | null>(null)
+
+  const searchOriginRef = useRef<string | null>(null)
 
   const [activeDrag, setActiveDrag] = useState<ActiveDrag>(null)
   const [dropIndicator, setDropIndicator] = useState<DropIndicator>(null)
@@ -121,14 +127,29 @@ export function AppSidebar() {
   const lists = useAppStore((s) => s.lists)
   const tasks = useAppStore((s) => s.tasks)
   const groups = useAppStore((s) => s.groups)
+  const sidebarOrder = useAppStore((s) => s.sidebarOrder)
   const github = useAppStore((s) => s.github)
   const addList = useAppStore((s) => s.addList)
   const addGroup = useAppStore((s) => s.addGroup)
   const moveListToGroup = useAppStore((s) => s.moveListToGroup)
   const reorderLists = useAppStore((s) => s.reorderLists)
-  const reorderGroups = useAppStore((s) => s.reorderGroups)
+  const reorderSidebar = useAppStore((s) => s.reorderSidebar)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+
+  const collisionDetection = useCallback<CollisionDetection>((args) => {
+    const activeData = args.active.data.current as { type?: "list" | "group" }
+    if (activeData?.type === "group") {
+      return closestCenter({
+        ...args,
+        droppableContainers: args.droppableContainers.filter((c) => {
+          const id = c.id as string
+          return id.startsWith("g:") || id.startsWith("l:")
+        }),
+      })
+    }
+    return pointerWithin(args)
+  }, [])
 
   const smartListCounts: Record<SmartListKey, number> = {
     tasks: selectAllTasks(tasks).filter((t) => !t.completed).length,
@@ -138,16 +159,22 @@ export function AppSidebar() {
   }
 
   const customLists = lists.filter((l) => l.id !== DEFAULT_LIST_ID)
-  const ungroupedLists = customLists.filter((l) => !l.groupId)
 
   function listTaskCount(id: string) {
     return tasks.filter((t) => t.listId === id && !t.completed).length
   }
 
-  function handleSearchSubmit(e: { preventDefault(): void }) {
-    e.preventDefault()
-    const q = search.trim()
-    if (q) router.push(`/search?q=${encodeURIComponent(q)}`)
+  function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value
+    setSearch(value)
+    const q = value.trim()
+    if (q) {
+      if (!searchOriginRef.current) searchOriginRef.current = pathname
+      router.replace(`/search?q=${encodeURIComponent(q)}`)
+    } else if (searchOriginRef.current) {
+      router.replace(searchOriginRef.current)
+      searchOriginRef.current = null
+    }
   }
 
   function handleAddGroup() {
@@ -155,7 +182,12 @@ export function AppSidebar() {
   }
 
   function handleAddList(groupId?: string) {
-    const id = addList("Untitled list", groupId ? { groupId } : undefined)
+    const base = "Untitled list"
+    const names = new Set(lists.map((l) => l.name))
+    let name = base
+    let i = 1
+    while (names.has(name)) name = `${base} (${i++})`
+    const id = addList(name, groupId ? { groupId } : undefined)
     setRenamingListId(id)
     router.push(`/lists/${id}`)
   }
@@ -177,8 +209,22 @@ export function AppSidebar() {
     const { over, delta } = e
     if (!over) { syncIndicator(null); return }
 
-    const overId = over.id as string
+    let overId = over.id as string
     const dragType = activeDragRef.current?.type
+
+    // When dragging a group over a list item: remap to parent group if grouped,
+    // or show a positional indicator if the list is ungrouped.
+    if (dragType === "group" && overId.startsWith("l:")) {
+      const list = customLists.find((l) => l.id === overId.slice(2))
+      if (list?.groupId) {
+        syncIndicator({ overId: mkGroupId(list.groupId), position: "after" })
+      } else {
+        const currentY = dragStartYRef.current + delta.y
+        const midY = over.rect.top + over.rect.height / 2
+        syncIndicator({ overId, position: currentY < midY ? "before" : "after" })
+      }
+      return
+    }
 
     // When a list is dragged over a group header it will be added to the group —
     // no positional indicator needed in that case.
@@ -200,15 +246,18 @@ export function AppSidebar() {
     syncIndicator(null)
     if (!e.over || !drag) return
 
-    const overId = e.over.id as string
+    let overId = e.over.id as string
 
     if (drag.type === "group") {
-      if (!overId.startsWith("g:")) return
-      const targetGroupId = overId.slice(2)
-      if (drag.id === targetGroupId) return
-      reorderGroups(
-        reorderById(groups.map((g) => g.id), drag.id, targetGroupId, indicator?.position ?? "after"),
-      )
+      // When dropped on a grouped list, remap to its parent group.
+      if (overId.startsWith("l:")) {
+        const list = customLists.find((l) => l.id === overId.slice(2))
+        if (list?.groupId) overId = mkGroupId(list.groupId)
+        // else: overId stays as the ungrouped list id
+      }
+      const activeItemId = mkGroupId(drag.id)
+      if (overId === activeItemId) return
+      reorderSidebar(reorderById(sidebarOrder, activeItemId, overId, indicator?.position ?? "after"))
       return
     }
 
@@ -228,9 +277,15 @@ export function AppSidebar() {
       const draggedList = customLists.find((l) => l.id === drag.id)
       const newGroupId = targetList?.groupId ?? null
       const pos = indicator?.position ?? "after"
-      reorderLists(reorderById(customLists.map((l) => l.id), drag.id, targetListId, pos))
-      if (newGroupId !== (draggedList?.groupId ?? null)) {
-        moveListToGroup(drag.id, newGroupId)
+      if (!draggedList?.groupId && !targetList?.groupId) {
+        // Both ungrouped — reorder in sidebarOrder
+        reorderSidebar(reorderById(sidebarOrder, mkListId(drag.id), overId, pos))
+      } else {
+        // At least one is grouped — reorder the lists array
+        reorderLists(reorderById(customLists.map((l) => l.id), drag.id, targetListId, pos))
+        if (newGroupId !== (draggedList?.groupId ?? null)) {
+          moveListToGroup(drag.id, newGroupId)
+        }
       }
     }
   }
@@ -253,14 +308,14 @@ export function AppSidebar() {
             <span className="truncate text-xs font-medium">{github.login}</span>
           </div>
         )}
-        <form onSubmit={handleSearchSubmit}>
+        <form onSubmit={(e) => e.preventDefault()}>
           <div className="relative">
             <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <SidebarInput
               placeholder="Search"
               className="pl-7"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={handleSearchChange}
             />
           </div>
         </form>
@@ -271,7 +326,7 @@ export function AppSidebar() {
       <SidebarContent className="overflow-x-hidden">
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1">
               {SMART_LIST_DEFS.map((def) => {
                 const Icon = def.icon
                 const count = smartListCounts[def.key]
@@ -294,59 +349,59 @@ export function AppSidebar() {
         <SidebarSeparator />
 
         <SidebarGroup>
-          <SidebarGroupLabel>Lists</SidebarGroupLabel>
-          <SidebarGroupAction onClick={handleAddGroup} aria-label="New group" title="New group">
-            <SquaresFourIcon />
-          </SidebarGroupAction>
-          <SidebarGroupContent>
+<SidebarGroupContent>
             <DndContext
               sensors={sensors}
-              collisionDetection={pointerWithin}
+              collisionDetection={collisionDetection}
+              autoScroll={DND_AUTO_SCROLL}
               onDragStart={handleDragStart}
               onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
             >
               <ListsSectionZone isDragging={isDraggingGroupedList}>
                 <SidebarMenu>
-                  {ungroupedLists.map((list) => (
-                    <ListItem
-                      key={list.id}
-                      list={list}
-                      isActive={pathname === `/lists/${list.id}`}
-                      count={listTaskCount(list.id)}
-                      groups={groups}
-                      isRenaming={renamingListId === list.id}
-                      onRenameComplete={() => setRenamingListId(null)}
-                      onStartRename={() => setRenamingListId(list.id)}
-                      dropIndicator={dropIndicator}
-                    />
-                  ))}
-
-                  {groups.map((group) => (
-                    <GroupItem
-                      key={group.id}
-                      group={group}
-                      lists={customLists.filter((l) => l.groupId === group.id)}
-                      pathname={pathname}
-                      listTaskCount={listTaskCount}
-                      allGroups={groups}
-                      renamingListId={renamingListId}
-                      onListRenameComplete={() => setRenamingListId(null)}
-                      onStartListRename={(id) => setRenamingListId(id)}
-                      autoFocusRename={renamingGroupId === group.id}
-                      onGroupRenameComplete={() => setRenamingGroupId(null)}
-                      onAddList={() => handleAddList(group.id)}
-                      dropIndicator={dropIndicator}
-                      activeDragType={activeDrag?.type ?? null}
-                    />
-                  ))}
-
-                  <SidebarMenuItem>
-                    <SidebarMenuButton onClick={() => handleAddList()}>
-                      <PlusIcon />
-                      <span>New list</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  {sidebarOrder.map((itemId) => {
+                    if (itemId.startsWith("l:")) {
+                      const list = customLists.find((l) => l.id === itemId.slice(2) && !l.groupId)
+                      if (!list) return null
+                      return (
+                        <ListItem
+                          key={list.id}
+                          list={list}
+                          isActive={pathname === `/lists/${list.id}`}
+                          count={listTaskCount(list.id)}
+                          groups={groups}
+                          isRenaming={renamingListId === list.id}
+                          onRenameComplete={() => setRenamingListId(null)}
+                          onStartRename={() => setRenamingListId(list.id)}
+                          dropIndicator={dropIndicator}
+                        />
+                      )
+                    }
+                    if (itemId.startsWith("g:")) {
+                      const group = groups.find((g) => g.id === itemId.slice(2))
+                      if (!group) return null
+                      return (
+                        <GroupItem
+                          key={group.id}
+                          group={group}
+                          lists={customLists.filter((l) => l.groupId === group.id)}
+                          pathname={pathname}
+                          listTaskCount={listTaskCount}
+                          allGroups={groups}
+                          renamingListId={renamingListId}
+                          onListRenameComplete={() => setRenamingListId(null)}
+                          onStartListRename={(id) => setRenamingListId(id)}
+                          autoFocusRename={renamingGroupId === group.id}
+                          onGroupRenameComplete={() => setRenamingGroupId(null)}
+                          onAddList={() => handleAddList(group.id)}
+                          dropIndicator={dropIndicator}
+                          activeDragType={activeDrag?.type ?? null}
+                        />
+                      )
+                    }
+                    return null
+                  })}
                 </SidebarMenu>
               </ListsSectionZone>
 
@@ -374,6 +429,28 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
+        <div className="-mx-2 border-t border-sidebar-border px-2 pt-1">
+          <div className="flex items-center gap-1">
+            <SidebarMenuButton onClick={() => handleAddList()} className="flex-1">
+              <PlusIcon />
+              <span>New list</span>
+            </SidebarMenuButton>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={handleAddGroup}
+                  aria-label="New group"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                >
+                  <FolderPlusIcon className="size-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>New group</TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+        <SidebarSeparator />
         <GitSyncActions />
         <GithubStatus />
       </SidebarFooter>

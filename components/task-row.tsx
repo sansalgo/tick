@@ -28,6 +28,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Toggle } from "@/components/ui/toggle"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { DEFAULT_LIST_ID } from "@/lib/constants"
 import { cn } from "@/lib/utils"
@@ -166,15 +167,20 @@ export function TaskRow({ task, list, lists }: TaskRowProps) {
         )}
       </button>
       {!selectionMode && (
-        <Toggle
-          pressed={task.important}
-          onPressedChange={() => toggleTaskImportant(task.id)}
-          size="sm"
-          aria-label={task.important ? "Remove from Important" : "Mark as Important"}
-          className="shrink-0 text-muted-foreground data-[state=on]:text-primary"
-        >
-          <StarIcon weight={task.important ? "fill" : "regular"} />
-        </Toggle>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Toggle
+              pressed={task.important}
+              onPressedChange={() => toggleTaskImportant(task.id)}
+              size="sm"
+              aria-label={task.important ? "Remove from Important" : "Mark as Important"}
+              className="shrink-0 text-muted-foreground data-[state=on]:text-primary"
+            >
+              <StarIcon weight={task.important ? "fill" : "regular"} />
+            </Toggle>
+          </TooltipTrigger>
+          <TooltipContent>{task.important ? "Remove from Important" : "Mark as Important"}</TooltipContent>
+        </Tooltip>
       )}
     </div>
   )

@@ -169,17 +169,6 @@ export function GithubSyncProvider({ children }: { children: React.ReactNode }) 
     return () => unsubscribe()
   }, [hasHydrated, connected])
 
-  // ── Unload guard ───────────────────────────────────────────────────────────
-  // Warn before closing the tab when there are uncommitted or unpushed changes.
-  const gitStatus = useAppStore((state) => state.github.gitStatus)
-  useEffect(() => {
-    if (gitStatus !== "uncommitted" && gitStatus !== "committed") return
-    function handleBeforeUnload(e: BeforeUnloadEvent) {
-      e.preventDefault()
-    }
-    window.addEventListener("beforeunload", handleBeforeUnload)
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
-  }, [gitStatus])
 
   return (
     <>

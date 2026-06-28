@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { DEFAULT_LIST_ID } from "@/lib/constants"
 import type { SortBy, SortConfig, Task, TaskList } from "@/lib/schemas"
 import { sortTasks } from "@/lib/sort"
@@ -240,14 +241,19 @@ function SortIndicator({ sortConfig, onToggleDirection, onClear }: SortIndicator
         )}
         Sorted {SORT_LABELS[sortConfig.by]}
       </button>
-      <button
-        type="button"
-        onClick={onClear}
-        aria-label="Clear sort"
-        className="flex items-center rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-      >
-        <XIcon className="size-3" />
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={onClear}
+            aria-label="Clear sort"
+            className="flex items-center rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <XIcon className="size-3" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>Clear sort</TooltipContent>
+      </Tooltip>
     </div>
   )
 }
@@ -275,17 +281,27 @@ function SelectionToolbar({
 }: SelectionToolbarProps) {
   return (
     <div className="flex w-full items-center gap-2">
-      <Button type="button" variant="ghost" size="icon" aria-label="Cancel selection" onClick={onClose}>
-        <XIcon />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button type="button" variant="ghost" size="icon" aria-label="Cancel selection" onClick={onClose}>
+            <XIcon />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Cancel selection</TooltipContent>
+      </Tooltip>
       <span className="text-lg font-semibold">{count}</span>
       <div className="ml-auto">
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="ghost" size="icon" aria-label="Selection actions">
-              <DotsThreeVerticalIcon />
-            </Button>
-          </DropdownMenuTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="ghost" size="icon" aria-label="Selection actions">
+                  <DotsThreeVerticalIcon />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>More actions</TooltipContent>
+          </Tooltip>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem onSelect={onSelectAll}>
               <CheckIcon /> Select all

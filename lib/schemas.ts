@@ -80,6 +80,7 @@ export const appDataSchema = z.object({
   tasks: z.array(taskSchema),
   settings: settingsSchema,
   groups: z.array(listGroupSchema).default([]),
+  sidebarOrder: z.array(z.string()).optional(),
   updatedAt: isoDateStringSchema,
 })
 

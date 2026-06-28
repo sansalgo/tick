@@ -32,6 +32,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Toggle } from "@/components/ui/toggle"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { RepeatRule, Task } from "@/lib/schemas"
 import { useAppStore } from "@/lib/store"
 import { useUiStore } from "@/lib/ui-store"
@@ -138,14 +139,19 @@ function TaskDetailContent({ task, onClose }: { task: Task; onClose: () => void 
               task.completed && "text-muted-foreground line-through"
             )}
           />
-          <Toggle
-            pressed={task.important}
-            onPressedChange={() => toggleTaskImportant(task.id)}
-            aria-label={task.important ? "Remove from Important" : "Mark as Important"}
-            className="text-muted-foreground data-[state=on]:text-primary"
-          >
-            <StarIcon weight={task.important ? "fill" : "regular"} />
-          </Toggle>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Toggle
+                pressed={task.important}
+                onPressedChange={() => toggleTaskImportant(task.id)}
+                aria-label={task.important ? "Remove from Important" : "Mark as Important"}
+                className="text-muted-foreground data-[state=on]:text-primary"
+              >
+                <StarIcon weight={task.important ? "fill" : "regular"} />
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent>{task.important ? "Remove from Important" : "Mark as Important"}</TooltipContent>
+          </Tooltip>
         </div>
         <SheetTitle className="sr-only">Task details</SheetTitle>
       </SheetHeader>

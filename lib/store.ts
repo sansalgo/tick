@@ -39,6 +39,7 @@ interface AppState {
   lists: TaskList[]
   tasks: Task[]
   groups: ListGroup[]
+  sidebarOrder: string[]
   settings: Settings
   github: GithubState
   hasHydrated: boolean
@@ -58,7 +59,7 @@ interface AppState {
   deleteGroup: (id: string) => void
   ungroupLists: (groupId: string) => void
   toggleGroupCollapsed: (id: string) => void
-  reorderGroups: (ids: string[]) => void
+  reorderSidebar: (order: string[]) => void
 
   addTask: (input: NewTaskInput) => string
   updateTask: (id: string, patch: Partial<Task>) => void
@@ -93,8 +94,15 @@ interface AppState {
   setHasRemoteChanges: (value: boolean) => void
 }
 
-type PersistedAppState = Pick<AppState, "lists" | "tasks" | "groups" | "settings"> & {
+type PersistedAppState = Pick<AppState, "lists" | "tasks" | "groups" | "sidebarOrder" | "settings"> & {
   github: Pick<GithubState, "connected" | "login" | "owner" | "repo" | "remoteCommitSha">
+}
+
+function deriveSidebarOrder(lists: TaskList[], groups: ListGroup[]): string[] {
+  return [
+    ...lists.filter((l) => !l.isSystem && !l.groupId).map((l) => `l:${l.id}`),
+    ...groups.map((g) => `g:${g.id}`),
+  ]
 }
 
 const createDefaultSettings = (): Settings => ({
@@ -136,6 +144,7 @@ export const useAppStore = create<AppState>()(
       lists: createDefaultLists(),
       tasks: [],
       groups: [],
+      sidebarOrder: [],
       settings: createDefaultSettings(),
       github: createDefaultGithub(),
       hasHydrated: false,
@@ -154,7 +163,10 @@ export const useAppStore = create<AppState>()(
           sort: { by: "createdAt", direction: "asc" },
           groupId: opts?.groupId,
         }
-        set((state) => ({ lists: [...state.lists, newList] }))
+        set((state) => ({
+          lists: [...state.lists, newList],
+          sidebarOrder: opts?.groupId ? state.sidebarOrder : [...state.sidebarOrder, `l:${id}`],
+        }))
         return id
       },
       renameList: (id, name) =>
@@ -165,6 +177,7 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           lists: state.lists.filter((l) => l.id !== id),
           tasks: state.tasks.filter((t) => t.listId !== id),
+          sidebarOrder: state.sidebarOrder.filter((x) => x !== `l:${id}`),
         })),
       duplicateList: (id) => {
         const newId = generateId()
@@ -177,7 +190,10 @@ export const useAppStore = create<AppState>()(
             name: `${src.name} (copy)`,
             createdAt: new Date().toISOString(),
           }
-          return { lists: [...state.lists, copy] }
+          return {
+            lists: [...state.lists, copy],
+            sidebarOrder: src.groupId ? state.sidebarOrder : [...state.sidebarOrder, `l:${newId}`],
+          }
         })
         return newId
       },
@@ -186,11 +202,22 @@ export const useAppStore = create<AppState>()(
           lists: state.lists.map((l) => (l.id === id ? { ...l, sort } : l)),
         })),
       moveListToGroup: (listId, groupId) =>
-        set((state) => ({
-          lists: state.lists.map((l) =>
-            l.id === listId ? { ...l, groupId: groupId ?? undefined } : l
-          ),
-        })),
+        set((state) => {
+          let sidebarOrder = state.sidebarOrder
+          if (groupId === null) {
+            if (!sidebarOrder.includes(`l:${listId}`)) {
+              sidebarOrder = [...sidebarOrder, `l:${listId}`]
+            }
+          } else {
+            sidebarOrder = sidebarOrder.filter((x) => x !== `l:${listId}`)
+          }
+          return {
+            lists: state.lists.map((l) =>
+              l.id === listId ? { ...l, groupId: groupId ?? undefined } : l
+            ),
+            sidebarOrder,
+          }
+        }),
       reorderLists: (ids) =>
         set((state) => {
           const idSet = new Set(ids)
@@ -211,7 +238,10 @@ export const useAppStore = create<AppState>()(
           collapsed: false,
           createdAt: new Date().toISOString(),
         }
-        set((state) => ({ groups: [...state.groups, newGroup] }))
+        set((state) => ({
+          groups: [...state.groups, newGroup],
+          sidebarOrder: [...state.sidebarOrder, `g:${id}`],
+        }))
         return id
       },
       renameGroup: (id, name) =>
@@ -222,23 +252,28 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           groups: state.groups.filter((g) => g.id !== id),
           lists: state.lists.map((l) => (l.groupId === id ? { ...l, groupId: undefined } : l)),
+          sidebarOrder: state.sidebarOrder.filter((x) => x !== `g:${id}`),
         })),
       ungroupLists: (groupId) =>
-        set((state) => ({
-          groups: state.groups.filter((g) => g.id !== groupId),
-          lists: state.lists.map((l) => (l.groupId === groupId ? { ...l, groupId: undefined } : l)),
-        })),
+        set((state) => {
+          const ungroupedIds = state.lists
+            .filter((l) => l.groupId === groupId)
+            .map((l) => `l:${l.id}`)
+          const groupIdx = state.sidebarOrder.indexOf(`g:${groupId}`)
+          const newOrder = state.sidebarOrder.filter((x) => x !== `g:${groupId}`)
+          if (groupIdx >= 0) newOrder.splice(groupIdx, 0, ...ungroupedIds)
+          else newOrder.push(...ungroupedIds)
+          return {
+            groups: state.groups.filter((g) => g.id !== groupId),
+            lists: state.lists.map((l) => (l.groupId === groupId ? { ...l, groupId: undefined } : l)),
+            sidebarOrder: newOrder,
+          }
+        }),
       toggleGroupCollapsed: (id) =>
         set((state) => ({
           groups: state.groups.map((g) => (g.id === id ? { ...g, collapsed: !g.collapsed } : g)),
         })),
-      reorderGroups: (ids) =>
-        set((state) => ({
-          groups: ids.flatMap((id) => {
-            const g = state.groups.find((x) => x.id === id)
-            return g ? [g] : []
-          }),
-        })),
+      reorderSidebar: (order) => set({ sidebarOrder: order }),
 
       addTask: (input) => {
         const id = generateId()
@@ -374,12 +409,16 @@ export const useAppStore = create<AppState>()(
         })),
       disconnectGithub: () => set(() => ({ github: createDefaultGithub() })),
       hydrateFromRemote: (data) =>
-        set(() => ({
-          lists: data.lists,
-          tasks: data.tasks,
-          groups: data.groups ?? [],
-          settings: data.settings,
-        })),
+        set(() => {
+          const groups = data.groups ?? []
+          return {
+            lists: data.lists,
+            tasks: data.tasks,
+            groups,
+            sidebarOrder: data.sidebarOrder ?? deriveSidebarOrder(data.lists, groups),
+            settings: data.settings,
+          }
+        }),
       setRemoteCommitSha: (sha) =>
         set((state) => ({
           github: { ...state.github, remoteCommitSha: sha },
@@ -410,6 +449,7 @@ export const useAppStore = create<AppState>()(
         lists: state.lists,
         tasks: state.tasks,
         groups: state.groups,
+        sidebarOrder: state.sidebarOrder,
         settings: state.settings,
         github: {
           connected: state.github.connected,
@@ -422,11 +462,14 @@ export const useAppStore = create<AppState>()(
       merge: (persistedState, currentState) => {
         const persisted = persistedState as PersistedAppState | undefined
         if (!persisted) return currentState
+        const lists = persisted.lists ?? currentState.lists
+        const groups = persisted.groups ?? currentState.groups
         return {
           ...currentState,
-          lists: persisted.lists ?? currentState.lists,
+          lists,
           tasks: persisted.tasks ?? currentState.tasks,
-          groups: persisted.groups ?? currentState.groups,
+          groups,
+          sidebarOrder: persisted.sidebarOrder ?? deriveSidebarOrder(lists, groups),
           settings: persisted.settings
             ? {
                 ...currentState.settings,
@@ -469,6 +512,7 @@ export const selectAppData = (state: AppState): AppData => ({
   lists: state.lists,
   tasks: state.tasks,
   groups: state.groups,
+  sidebarOrder: state.sidebarOrder,
   settings: state.settings,
   updatedAt: new Date().toISOString(),
 })

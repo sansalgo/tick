@@ -27,6 +27,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { DEFAULT_LIST_ID } from "@/lib/constants"
 import { isoDateStringSchema, repeatRuleSchema, type RepeatRule, type TaskList } from "@/lib/schemas"
 import { useAppStore, type NewTaskInput } from "@/lib/store"
@@ -230,15 +231,22 @@ export function AddTaskBar({
                   control={form.control}
                   name="dueDate"
                   render={({ field }) => (
-                    <DueDatePicker value={field.value} onChange={field.onChange}>
-                      <InputGroupButton
-                        variant={field.value ? "secondary" : "ghost"}
-                        size="icon-sm"
-                        aria-label="Set due date"
-                      >
-                        <CalendarBlankIcon />
-                      </InputGroupButton>
-                    </DueDatePicker>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex">
+                          <DueDatePicker value={field.value} onChange={field.onChange}>
+                            <InputGroupButton
+                              variant={field.value ? "secondary" : "ghost"}
+                              size="icon-sm"
+                              aria-label="Set due date"
+                            >
+                              <CalendarBlankIcon />
+                            </InputGroupButton>
+                          </DueDatePicker>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>Set due date</TooltipContent>
+                    </Tooltip>
                   )}
                 />
               )}
@@ -247,15 +255,22 @@ export function AddTaskBar({
                 control={form.control}
                 name="reminder"
                 render={({ field }) => (
-                  <ReminderPicker value={field.value} onChange={field.onChange}>
-                    <InputGroupButton
-                      variant={field.value ? "secondary" : "ghost"}
-                      size="icon-sm"
-                      aria-label="Set reminder"
-                    >
-                      <BellIcon />
-                    </InputGroupButton>
-                  </ReminderPicker>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex">
+                        <ReminderPicker value={field.value} onChange={field.onChange}>
+                          <InputGroupButton
+                            variant={field.value ? "secondary" : "ghost"}
+                            size="icon-sm"
+                            aria-label="Set reminder"
+                          >
+                            <BellIcon />
+                          </InputGroupButton>
+                        </ReminderPicker>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>Set reminder</TooltipContent>
+                  </Tooltip>
                 )}
               />
 
@@ -263,15 +278,22 @@ export function AddTaskBar({
                 control={form.control}
                 name="repeat"
                 render={({ field }) => (
-                  <RepeatPicker value={field.value} onChange={field.onChange}>
-                    <InputGroupButton
-                      variant={field.value ? "secondary" : "ghost"}
-                      size="icon-sm"
-                      aria-label="Set repeat"
-                    >
-                      <ArrowClockwiseIcon />
-                    </InputGroupButton>
-                  </RepeatPicker>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex">
+                        <RepeatPicker value={field.value} onChange={field.onChange}>
+                          <InputGroupButton
+                            variant={field.value ? "secondary" : "ghost"}
+                            size="icon-sm"
+                            aria-label="Set repeat"
+                          >
+                            <ArrowClockwiseIcon />
+                          </InputGroupButton>
+                        </RepeatPicker>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>Set repeat</TooltipContent>
+                  </Tooltip>
                 )}
               />
 
@@ -283,15 +305,20 @@ export function AddTaskBar({
                 />
               )}
 
-              <InputGroupButton
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={handleCancel}
-                aria-label="Cancel"
-              >
-                <XIcon />
-              </InputGroupButton>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <InputGroupButton
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={handleCancel}
+                    aria-label="Cancel"
+                  >
+                    <XIcon />
+                  </InputGroupButton>
+                </TooltipTrigger>
+                <TooltipContent>Cancel</TooltipContent>
+              </Tooltip>
               <InputGroupButton type="submit" variant="default" size="sm">
                 Add
               </InputGroupButton>

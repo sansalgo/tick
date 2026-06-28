@@ -31,7 +31,7 @@ export default function RootLayout({
         <DisableContextMenu />
         <ThemeProvider>
           <ThemeVarsProvider>
-            <TooltipProvider>
+            <TooltipProvider delayDuration={500}>
               <GithubSyncProvider>{children}</GithubSyncProvider>
               <Toaster />
             </TooltipProvider>

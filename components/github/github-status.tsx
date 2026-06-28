@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { CloudSlashIcon, GithubLogoIcon } from "@phosphor-icons/react"
 
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { logoutGithub } from "@/lib/github"
 import { useAppStore } from "@/lib/store"
 
@@ -43,15 +44,20 @@ export function GithubStatus() {
       <span className="min-w-0 flex-1 truncate">
         {github.owner}/{github.repo}
       </span>
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        onClick={handleDisconnect}
-        disabled={disconnecting}
-        title="Disconnect GitHub"
-      >
-        <CloudSlashIcon />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={handleDisconnect}
+            disabled={disconnecting}
+            aria-label="Disconnect GitHub"
+          >
+            <CloudSlashIcon />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Disconnect GitHub</TooltipContent>
+      </Tooltip>
     </div>
   )
 }

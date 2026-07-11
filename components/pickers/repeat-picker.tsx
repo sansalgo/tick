@@ -37,9 +37,20 @@ const PRESETS: { type: "daily" | "weekdays" | "weekly" | "monthly" | "yearly"; l
 const customRepeatSchema = z.object({
   interval: z.number().int().min(1),
   unit: z.enum(["days", "weeks", "months", "years"]),
+  weekdays: z.array(z.number().int().min(0).max(6)).optional(),
 })
 
 type CustomRepeatValues = z.infer<typeof customRepeatSchema>
+
+const WEEKDAYS = [
+  { value: 0, label: "Su" },
+  { value: 1, label: "Mo" },
+  { value: 2, label: "Tu" },
+  { value: 3, label: "We" },
+  { value: 4, label: "Th" },
+  { value: 5, label: "Fr" },
+  { value: 6, label: "Sa" },
+]
 
 export function RepeatPicker({ value, onChange, children }: RepeatPickerProps) {
   const [open, setOpen] = useState(false)
@@ -50,6 +61,7 @@ export function RepeatPicker({ value, onChange, children }: RepeatPickerProps) {
     defaultValues: {
       interval: value?.type === "custom" ? value.interval : 1,
       unit: value?.type === "custom" ? value.unit : "weeks",
+      weekdays: value?.type === "custom" ? (value.weekdays ?? []) : [],
     },
   })
 
@@ -59,7 +71,12 @@ export function RepeatPicker({ value, onChange, children }: RepeatPickerProps) {
   }
 
   function onCustomSubmit(values: CustomRepeatValues) {
-    apply({ type: "custom", interval: values.interval, unit: values.unit })
+    apply({
+      type: "custom",
+      interval: values.interval,
+      unit: values.unit,
+      weekdays: values.unit === "weeks" && values.weekdays?.length ? values.weekdays : undefined,
+    })
   }
 
   function handleOpenChange(next: boolean) {
@@ -69,6 +86,7 @@ export function RepeatPicker({ value, onChange, children }: RepeatPickerProps) {
       form.reset({
         interval: value?.type === "custom" ? value.interval : 1,
         unit: value?.type === "custom" ? value.unit : "weeks",
+        weekdays: value?.type === "custom" ? (value.weekdays ?? []) : [],
       })
     }
   }
@@ -128,6 +146,31 @@ export function RepeatPicker({ value, onChange, children }: RepeatPickerProps) {
                   </SelectContent>
                 </Select>
               </Field>
+              {form.watch("unit") === "weeks" && (
+                <div className="flex flex-wrap gap-1">
+                  {WEEKDAYS.map((day) => {
+                    const selected = (form.watch("weekdays") ?? []).includes(day.value)
+                    return (
+                      <Button
+                        key={day.value}
+                        type="button"
+                        size="sm"
+                        variant={selected ? "default" : "secondary"}
+                        className="size-9 px-0"
+                        onClick={() => {
+                          const current = form.getValues("weekdays") ?? []
+                          form.setValue(
+                            "weekdays",
+                            selected ? current.filter((d) => d !== day.value) : [...current, day.value]
+                          )
+                        }}
+                      >
+                        {day.label}
+                      </Button>
+                    )
+                  })}
+                </div>
+              )}
             </FieldGroup>
             <PickerFooter
               onCancel={() => setOpen(false)}

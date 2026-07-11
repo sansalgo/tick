@@ -4,13 +4,13 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-svh overflow-hidden">
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="min-h-0 p-4">
         <div data-no-print className="absolute top-2 left-2 z-10 md:hidden">
           <SidebarTrigger />
         </div>
-        {children}
+        <div className="min-h-0 flex-1">{children}</div>
       </SidebarInset>
       <TaskDetailSheet />
     </SidebarProvider>

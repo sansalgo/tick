@@ -39,6 +39,7 @@ export default function ListPage({ params }: { params: Promise<{ listId: string 
       onSortChange={(sort) => updateListSort(list.id, sort)}
       emptyTitle="No tasks yet"
       emptyDescription="Add a task to get started."
+      emptyRows
       addTaskBar={{ listId: list.id, placeholder: "Add a task" }}
       lists={lists}
     />

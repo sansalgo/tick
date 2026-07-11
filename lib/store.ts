@@ -105,6 +105,16 @@ function deriveSidebarOrder(lists: TaskList[], groups: ListGroup[]): string[] {
   ]
 }
 
+// Heals lists that exist in `lists` but are missing from `sidebarOrder` (e.g. from
+// the deleteGroup bug that used to orphan a group's lists) by appending them.
+function reconcileSidebarOrder(order: string[], lists: TaskList[]): string[] {
+  const present = new Set(order)
+  const missing = lists
+    .filter((l) => !l.isSystem && !l.groupId && !present.has(`l:${l.id}`))
+    .map((l) => `l:${l.id}`)
+  return missing.length > 0 ? [...order, ...missing] : order
+}
+
 const createDefaultSettings = (): Settings => ({
   themeAccent: "blue",
   backgroundPresetId: "default",
@@ -249,11 +259,20 @@ export const useAppStore = create<AppState>()(
           groups: state.groups.map((g) => (g.id === id ? { ...g, name } : g)),
         })),
       deleteGroup: (id) =>
-        set((state) => ({
-          groups: state.groups.filter((g) => g.id !== id),
-          lists: state.lists.map((l) => (l.groupId === id ? { ...l, groupId: undefined } : l)),
-          sidebarOrder: state.sidebarOrder.filter((x) => x !== `g:${id}`),
-        })),
+        set((state) => {
+          const ungroupedIds = state.lists
+            .filter((l) => l.groupId === id)
+            .map((l) => `l:${l.id}`)
+          const groupIdx = state.sidebarOrder.indexOf(`g:${id}`)
+          const newOrder = state.sidebarOrder.filter((x) => x !== `g:${id}`)
+          if (groupIdx >= 0) newOrder.splice(groupIdx, 0, ...ungroupedIds)
+          else newOrder.push(...ungroupedIds)
+          return {
+            groups: state.groups.filter((g) => g.id !== id),
+            lists: state.lists.map((l) => (l.groupId === id ? { ...l, groupId: undefined } : l)),
+            sidebarOrder: newOrder,
+          }
+        }),
       ungroupLists: (groupId) =>
         set((state) => {
           const ungroupedIds = state.lists
@@ -415,7 +434,10 @@ export const useAppStore = create<AppState>()(
             lists: data.lists,
             tasks: data.tasks,
             groups,
-            sidebarOrder: data.sidebarOrder ?? deriveSidebarOrder(data.lists, groups),
+            sidebarOrder: reconcileSidebarOrder(
+              data.sidebarOrder ?? deriveSidebarOrder(data.lists, groups),
+              data.lists
+            ),
             settings: data.settings,
           }
         }),
@@ -469,7 +491,10 @@ export const useAppStore = create<AppState>()(
           lists,
           tasks: persisted.tasks ?? currentState.tasks,
           groups,
-          sidebarOrder: persisted.sidebarOrder ?? deriveSidebarOrder(lists, groups),
+          sidebarOrder: reconcileSidebarOrder(
+            persisted.sidebarOrder ?? deriveSidebarOrder(lists, groups),
+            lists
+          ),
           settings: persisted.settings
             ? {
                 ...currentState.settings,

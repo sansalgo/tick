@@ -104,7 +104,7 @@ export function TaskRow({ task, list, lists }: TaskRowProps) {
   const row = (
     <div
       className={cn(
-        "group flex items-start gap-3 border-b px-4 py-2.5 last:border-b-0 hover:bg-muted/50",
+        "group flex items-start gap-3 border-b px-4 py-2.5 hover:bg-muted/50",
         isSelected && "bg-accent"
       )}
       onPointerDown={handlePointerDown}

@@ -14,6 +14,7 @@ export const repeatRuleSchema = z.discriminatedUnion("type", [
     type: z.literal("custom"),
     interval: z.number().int().min(1),
     unit: repeatUnitSchema,
+    weekdays: z.array(z.number().int().min(0).max(6)).optional(),
   }),
 ])
 

@@ -193,7 +193,7 @@ export function AddTaskBar({
       }}
       className={className}
     >
-      <InputGroup className="h-11 rounded-xl border border-border/50 bg-card/80 shadow-sm backdrop-blur-sm">
+      <InputGroup className="h-11 border border-border/50 bg-card/80 shadow-sm backdrop-blur-sm">
         <InputGroupAddon align="inline-start" className="pl-3">
           {focused ? (
             <CircleIcon className="size-4 shrink-0 text-muted-foreground/50" />

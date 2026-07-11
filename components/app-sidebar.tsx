@@ -69,6 +69,7 @@ import {
   useAppStore,
 } from "@/lib/store"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 
 // ─── DnD helpers ──────────────────────────────────────────────────────────────
 
@@ -346,7 +347,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarSeparator />
+        <SidebarSeparator className="m-0" />
 
         <SidebarGroup>
 <SidebarGroupContent>
@@ -428,31 +429,32 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
-        <div className="-mx-2 border-t border-sidebar-border px-2 pt-1">
-          <div className="flex items-center gap-1">
+      <SidebarFooter className="gap-0 p-0">
+          <div className="flex items-center border-t border-sidebar-border">
             <SidebarMenuButton onClick={() => handleAddList()} className="flex-1">
               <PlusIcon />
               <span>New list</span>
             </SidebarMenuButton>
+            <SidebarSeparator orientation="vertical" className="mx-0" />
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  variant="ghost"
                   type="button"
                   onClick={handleAddGroup}
                   aria-label="New group"
-                  className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 >
                   <FolderPlusIcon className="size-4" />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>New group</TooltipContent>
             </Tooltip>
           </div>
+        <SidebarSeparator className="m-0" />
+        <div className="flex flex-col gap-2 p-2">
+          <GitSyncActions />
+          <GithubStatus />
         </div>
-        <SidebarSeparator />
-        <GitSyncActions />
-        <GithubStatus />
       </SidebarFooter>
     </Sidebar>
   )

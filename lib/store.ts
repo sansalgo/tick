@@ -78,8 +78,10 @@ interface AppState {
   deleteTasks: (ids: string[]) => void
 
   addStep: (taskId: string, title: string) => void
+  updateStep: (taskId: string, stepId: string, title: string) => void
   toggleStep: (taskId: string, stepId: string) => void
   deleteStep: (taskId: string, stepId: string) => void
+  promoteStepToTask: (taskId: string, stepId: string) => void
 
   setThemeAccent: (id: string) => void
   setBackgroundPreset: (id: string) => void
@@ -392,6 +394,14 @@ export const useAppStore = create<AppState>()(
               : t
           ),
         })),
+      updateStep: (taskId, stepId, title) =>
+        set((state) => ({
+          tasks: state.tasks.map((t) =>
+            t.id === taskId
+              ? { ...t, steps: t.steps.map((s) => (s.id === stepId ? { ...s, title } : s)) }
+              : t
+          ),
+        })),
       toggleStep: (taskId, stepId) =>
         set((state) => ({
           tasks: state.tasks.map((t) =>
@@ -409,6 +419,36 @@ export const useAppStore = create<AppState>()(
             t.id === taskId ? { ...t, steps: t.steps.filter((s) => s.id !== stepId) } : t
           ),
         })),
+      promoteStepToTask: (taskId, stepId) =>
+        set((state) => {
+          const task = state.tasks.find((t) => t.id === taskId)
+          const step = task?.steps.find((s) => s.id === stepId)
+          if (!task || !step) return state
+          const newTask: Task = {
+            id: generateId(),
+            listId: task.listId,
+            title: step.title,
+            notes: "",
+            completed: step.completed,
+            important: false,
+            myDay: null,
+            dueDate: null,
+            reminder: null,
+            repeat: null,
+            steps: [],
+            createdAt: new Date().toISOString(),
+            completedAt: step.completed ? new Date().toISOString() : null,
+            order: Date.now(),
+          }
+          return {
+            tasks: [
+              ...state.tasks.map((t) =>
+                t.id === taskId ? { ...t, steps: t.steps.filter((s) => s.id !== stepId) } : t
+              ),
+              newTask,
+            ],
+          }
+        }),
 
       setThemeAccent: (id) =>
         set((state) => ({ settings: { ...state.settings, themeAccent: id } })),

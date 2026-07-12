@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { format, isToday } from "date-fns"
+import { format, isPast, isToday } from "date-fns"
 import { z } from "zod"
 import {
   ArrowClockwiseIcon,
@@ -17,8 +17,10 @@ import {
 } from "@phosphor-icons/react"
 
 import { DueDatePicker } from "@/components/pickers/due-date-picker"
+import { EditableText } from "@/components/editable-text"
 import { ReminderPicker } from "@/components/pickers/reminder-picker"
 import { RepeatPicker } from "@/components/pickers/repeat-picker"
+import { StepRow } from "@/components/step-row"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -29,7 +31,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Toggle } from "@/components/ui/toggle"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -39,7 +40,6 @@ import { useUiStore } from "@/lib/ui-store"
 import { cn } from "@/lib/utils"
 
 const detailSchema = z.object({
-  title: z.string().min(1),
   notes: z.string(),
 })
 
@@ -92,18 +92,24 @@ function TaskDetailContent({ task, onClose }: { task: Task; onClose: () => void 
   const setTaskRepeat = useAppStore((state) => state.setTaskRepeat)
   const deleteTask = useAppStore((state) => state.deleteTask)
   const addStep = useAppStore((state) => state.addStep)
+  const updateStep = useAppStore((state) => state.updateStep)
   const toggleStep = useAppStore((state) => state.toggleStep)
   const deleteStep = useAppStore((state) => state.deleteStep)
+  const promoteStepToTask = useAppStore((state) => state.promoteStepToTask)
 
   const [newStep, setNewStep] = useState("")
 
   const form = useForm<DetailValues>({
     resolver: zodResolver(detailSchema),
-    defaultValues: { title: task.title, notes: task.notes },
+    defaultValues: { notes: task.notes },
   })
 
   function save(values: DetailValues) {
-    updateTask(task.id, { title: values.title.trim() || task.title, notes: values.notes })
+    updateTask(task.id, { notes: values.notes })
+  }
+
+  function saveTitle(title: string) {
+    updateTask(task.id, { title })
   }
 
   function handleAddStep(e: React.FormEvent) {
@@ -120,32 +126,34 @@ function TaskDetailContent({ task, onClose }: { task: Task; onClose: () => void 
   }
 
   const isMyDay = task.myDay !== null && isToday(new Date(task.myDay))
+  const dueDate = task.dueDate ? new Date(task.dueDate) : null
+  const overdue = !!dueDate && !task.completed && isPast(dueDate) && !isToday(dueDate)
 
   return (
     <>
       <SheetHeader className="border-b pb-3">
-        <div className="flex items-start gap-3 pt-2">
+        <div className="flex items-start gap-3 pr-7 pt-2">
           <Checkbox
             checked={task.completed}
             onCheckedChange={() => toggleTaskCompleted(task.id)}
             className="mt-1.5 size-5 rounded-full"
             aria-label={task.completed ? "Mark as not completed" : "Mark as completed"}
           />
-          <Input
-            {...form.register("title")}
-            onBlur={form.handleSubmit(save)}
-            className={cn(
-              "h-auto flex-1 border-0 px-0 text-base font-medium shadow-none focus-visible:ring-0",
-              task.completed && "text-muted-foreground line-through"
-            )}
+          <EditableText
+            value={task.title}
+            onSave={saveTitle}
+            multiline
+            strikethrough={task.completed}
+            className="flex-1 py-1 text-base font-medium"
           />
           <Tooltip>
             <TooltipTrigger asChild>
               <Toggle
                 pressed={task.important}
                 onPressedChange={() => toggleTaskImportant(task.id)}
+                size="sm"
                 aria-label={task.important ? "Remove from Important" : "Mark as Important"}
-                className="text-muted-foreground data-[state=on]:text-primary"
+                className="shrink-0 text-muted-foreground data-[state=on]:text-primary"
               >
                 <StarIcon weight={task.important ? "fill" : "regular"} />
               </Toggle>
@@ -159,25 +167,14 @@ function TaskDetailContent({ task, onClose }: { task: Task; onClose: () => void 
       <div className="flex-1 overflow-y-auto px-4 py-3">
         <div className="flex flex-col gap-1">
           {task.steps.map((step) => (
-            <div key={step.id} className="group flex items-center gap-2">
-              <Checkbox
-                checked={step.completed}
-                onCheckedChange={() => toggleStep(task.id, step.id)}
-                className="size-4 rounded-full"
-              />
-              <span className={cn("flex-1 text-sm", step.completed && "text-muted-foreground line-through")}>
-                {step.title}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="opacity-0 group-hover:opacity-100"
-                onClick={() => deleteStep(task.id, step.id)}
-              >
-                <XIcon />
-              </Button>
-            </div>
+            <StepRow
+              key={step.id}
+              step={step}
+              onToggle={() => toggleStep(task.id, step.id)}
+              onRename={(title) => updateStep(task.id, step.id, title)}
+              onPromote={() => promoteStepToTask(task.id, step.id)}
+              onDelete={() => deleteStep(task.id, step.id)}
+            />
           ))}
           <form onSubmit={handleAddStep} className="flex items-center gap-2 pt-1">
             <PlusIcon className="size-4 text-muted-foreground" />
@@ -191,46 +188,104 @@ function TaskDetailContent({ task, onClose }: { task: Task; onClose: () => void 
         </div>
 
         <div className="mt-4 flex flex-col gap-1 border-t pt-3">
-          <div className="flex w-full items-center justify-between gap-2 py-2 text-sm">
+          <button
+            type="button"
+            onClick={() => toggleTaskMyDay(task.id)}
+            className="flex w-full items-center justify-between gap-2 py-2 text-sm"
+          >
             <span className="flex items-center gap-2">
               <SunIcon className="size-4 text-muted-foreground" />
-              Add to My Day
+              {isMyDay ? "Added to My Day" : "Add to My Day"}
             </span>
-            <Switch checked={isMyDay} onCheckedChange={() => toggleTaskMyDay(task.id)} />
+            {isMyDay && <span className="text-muted-foreground">Remove</span>}
+          </button>
+
+          <div className="flex items-center gap-1">
+            <DueDatePicker value={task.dueDate} onChange={(value) => setTaskDueDate(task.id, value)}>
+              <button
+                type="button"
+                className={cn(
+                  "flex flex-1 items-center gap-2 py-2 text-left text-sm",
+                  task.dueDate ? (overdue ? "text-destructive" : "text-primary") : "text-muted-foreground"
+                )}
+              >
+                <CalendarBlankIcon className="size-4" />
+                {task.dueDate ? `Due ${format(dueDate!, "EEE, MMM d")}` : "Due date"}
+              </button>
+            </DueDatePicker>
+            {task.dueDate && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setTaskDueDate(task.id, null)}
+                aria-label="Remove due date"
+              >
+                <XIcon />
+              </Button>
+            )}
           </div>
 
-          <DueDatePicker value={task.dueDate} onChange={(value) => setTaskDueDate(task.id, value)}>
-            <button type="button" className="flex w-full items-center justify-between gap-2 py-2 text-sm">
-              <span className="flex items-center gap-2">
-                <CalendarBlankIcon className="size-4 text-muted-foreground" />
-                Due date
-              </span>
-              <span className="text-muted-foreground">
-                {task.dueDate ? format(new Date(task.dueDate), "EEE, MMM d") : ""}
-              </span>
-            </button>
-          </DueDatePicker>
+          <div className="flex items-center gap-1">
+            <ReminderPicker value={task.reminder} onChange={(value) => setTaskReminder(task.id, value)}>
+              {task.reminder ? (
+                <button type="button" className="flex flex-1 flex-col items-start py-2 text-left text-sm text-primary">
+                  <span className="flex items-center gap-2">
+                    <BellIcon className="size-4" />
+                    Remind me at {format(new Date(task.reminder), "h:mm a")}
+                  </span>
+                  <span className="pl-6 text-xs text-muted-foreground">
+                    {format(new Date(task.reminder), "EEE, MMM d")}
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 py-2 text-left text-sm text-muted-foreground"
+                >
+                  <BellIcon className="size-4" />
+                  Remind me
+                </button>
+              )}
+            </ReminderPicker>
+            {task.reminder && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setTaskReminder(task.id, null)}
+                aria-label="Remove reminder"
+              >
+                <XIcon />
+              </Button>
+            )}
+          </div>
 
-          <ReminderPicker value={task.reminder} onChange={(value) => setTaskReminder(task.id, value)}>
-            <button type="button" className="flex w-full items-center justify-between gap-2 py-2 text-sm">
-              <span className="flex items-center gap-2">
-                <BellIcon className="size-4 text-muted-foreground" />
-                Remind me
-              </span>
-              <span className="text-muted-foreground">
-                {task.reminder ? format(new Date(task.reminder), "MMM d, h:mm a") : ""}
-              </span>
-            </button>
-          </ReminderPicker>
-
-          <RepeatPicker value={task.repeat} onChange={(value) => setTaskRepeat(task.id, value)}>
-            <button type="button" className="flex w-full items-center justify-between gap-2 py-2 text-sm">
-              <span className="flex items-center gap-2">
-                <ArrowClockwiseIcon className="size-4 text-muted-foreground" />
+          <div className="flex items-center gap-1">
+            <RepeatPicker value={task.repeat} onChange={(value) => setTaskRepeat(task.id, value)}>
+              <button
+                type="button"
+                className={cn(
+                  "flex flex-1 items-center gap-2 py-2 text-left text-sm",
+                  task.repeat ? "text-primary" : "text-muted-foreground"
+                )}
+              >
+                <ArrowClockwiseIcon className="size-4" />
                 {repeatLabel(task.repeat)}
-              </span>
-            </button>
-          </RepeatPicker>
+              </button>
+            </RepeatPicker>
+            {task.repeat && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setTaskRepeat(task.id, null)}
+                aria-label="Remove repeat"
+              >
+                <XIcon />
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="mt-4 border-t pt-3">
